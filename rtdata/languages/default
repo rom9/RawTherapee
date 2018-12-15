@@ -780,6 +780,8 @@ HISTORY_MSG_SH_COLORSPACE;S/H - Colorspace
 HISTORY_MSG_SOFTLIGHT_ENABLED;Soft light
 HISTORY_MSG_SOFTLIGHT_STRENGTH;Soft light - Strength
 HISTORY_MSG_TM_FATTAL_ANCHOR;DRC - Anchor
+HISTORY_MSG_RETICHROM;Retinex Chroma
+HISTORY_MSG_RETIDEHAZ;Retinex Dehaze
 HISTORY_NEWSNAPSHOT;Add
 HISTORY_NEWSNAPSHOT_TOOLTIP;Shortcut: <b>Alt-s</b>
 HISTORY_SNAPSHOT;Snapshot
@@ -1934,12 +1936,16 @@ TP_RETINEX_CONTEDIT_HSL;HSL histogram
 TP_RETINEX_CONTEDIT_LAB;L*a*b* histogram
 TP_RETINEX_CONTEDIT_LH;Hue
 TP_RETINEX_CONTEDIT_MAP;Equalizer
+TP_RETINEX_CHRRT;Chroma
+TP_RETINEX_CHROMA_TOOLTIP;Percentage % of Strength
 TP_RETINEX_CURVEEDITOR_CD;L=f(L)
 TP_RETINEX_CURVEEDITOR_CD_TOOLTIP;Luminance according to luminance L=f(L)\nCorrect raw data to reduce halos and artifacts.
 TP_RETINEX_CURVEEDITOR_LH;Strength=f(H)
 TP_RETINEX_CURVEEDITOR_LH_TOOLTIP;Strength according to hue Strength=f(H)\nThis curve also acts on chroma when using the "Highlight" retinex method.
 TP_RETINEX_CURVEEDITOR_MAP;L=f(L)
 TP_RETINEX_CURVEEDITOR_MAP_TOOLTIP;This curve can be applied alone or with a Gaussian mask or wavelet mask.\nBeware of artifacts!
+TP_RETINEX_DEHAZ;Dehaze
+TP_RETINEX_DEHAZ_TOOLTIP;Use Dehaze algorithm combine with Retinex
 TP_RETINEX_EQUAL;Equalizer
 TP_RETINEX_FREEGAMMA;Free gamma
 TP_RETINEX_GAIN;Gain

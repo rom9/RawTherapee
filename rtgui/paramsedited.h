@@ -70,6 +70,7 @@ public:
     bool gam;
     bool slope;
     bool neigh;
+    bool chrrt;
     bool offs;
     bool retinexMethod;
     bool mapMethod;
@@ -77,6 +78,7 @@ public:
     bool retinexcolorspace;
     bool gammaretinex;
     bool vart;
+    bool dehaz;
     bool limd;
     bool highl;
     bool baselog;

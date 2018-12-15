@@ -19,6 +19,8 @@ class Retinex : public ToolParamBlock, public FoldableToolPanel,  public rtengin
 {
 private:
     IdleRegister idle_register;
+    rtengine::ProcEvent EvLdehaz;
+    rtengine::ProcEvent EvChrrt;
 
 protected:
     CurveEditorGroup* curveEditorGD;
@@ -31,8 +33,10 @@ protected:
     Adjuster* grads;
     Adjuster* iter;
     Adjuster* neigh;
+    Adjuster* chrrt;
     Adjuster* offs;
     Adjuster* vart;
+    Adjuster* dehaz;
     Adjuster* limd;
     Adjuster* highl;
     Adjuster* skal;

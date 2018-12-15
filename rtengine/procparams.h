@@ -308,6 +308,7 @@ struct RetinexParams {
     double  gam;
     double  slope;
     int     neigh;
+    int     chrrt;
     int     offs;
     int     highlights;
     int     htonalwidth;
@@ -321,6 +322,7 @@ struct RetinexParams {
     Glib::ustring mapMethod;
     Glib::ustring viewMethod;
     int     vart;
+    int     dehaz;
     int     limd;
     int     highl;
     int     skal;

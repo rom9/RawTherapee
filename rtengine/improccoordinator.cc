@@ -271,16 +271,18 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
             } else {
                 highDetailRawComputed = false;
             }
-
+            
             if (params.retinex.enabled) {
                 lhist16RETI(32768);
                 lhist16RETI.clear();
 
                 imgsrc->retinexPrepareBuffers(params.icm, params.retinex, conversionBuffer, lhist16RETI);
             }
+
         }
 
         if ((todo & (M_RETINEX | M_INIT)) && params.retinex.enabled) {
+            
             bool dehacontlutili = false;
             bool mapcontlutili = false;
             bool useHsl = false;

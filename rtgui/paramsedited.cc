@@ -70,8 +70,10 @@ void ParamsEdited::set(bool v)
     retinex.gam    = v;
     retinex.slope    = v;
     retinex.neigh    = v;
+    retinex.chrrt    = v;
     retinex.offs    = v;
     retinex.vart    = v;
+    retinex.dehaz    = v;
     retinex.limd    = v;
     retinex.highl    = v;
     retinex.skal    = v;
@@ -634,8 +636,10 @@ void ParamsEdited::initFrom(const std::vector<rtengine::procparams::ProcParams>&
         retinex.gam = retinex.gam && p.retinex.gam == other.retinex.gam;
         retinex.slope = retinex.slope && p.retinex.slope == other.retinex.slope;
         retinex.neigh = retinex.neigh && p.retinex.neigh == other.retinex.neigh;
+        retinex.chrrt = retinex.chrrt && p.retinex.chrrt == other.retinex.chrrt;
         retinex.offs = retinex.offs && p.retinex.offs == other.retinex.offs;
         retinex.vart = retinex.vart && p.retinex.vart == other.retinex.vart;
+        retinex.dehaz = retinex.dehaz && p.retinex.dehaz == other.retinex.dehaz;
         retinex.limd = retinex.limd && p.retinex.limd == other.retinex.limd;
         retinex.highl = retinex.highl && p.retinex.highl == other.retinex.highl;
         retinex.skal = retinex.skal && p.retinex.skal == other.retinex.skal;
@@ -1307,6 +1311,10 @@ void ParamsEdited::combine(rtengine::procparams::ProcParams& toEdit, const rteng
     if (retinex.medianmap) {
         toEdit.retinex.medianmap  = mods.retinex.medianmap;
     }
+    
+    if (retinex.chrrt) {
+        toEdit.retinex.chrrt  = mods.retinex.chrrt;
+    }
 
     if (retinex.neigh) {
         toEdit.retinex.neigh   = dontforceSet && options.baBehav[ADDSET_RETI_NEIGH] ? toEdit.retinex.neigh + mods.retinex.neigh : mods.retinex.neigh;
@@ -1330,6 +1338,10 @@ void ParamsEdited::combine(rtengine::procparams::ProcParams& toEdit, const rteng
 
     if (retinex.vart) {
         toEdit.retinex.vart   = dontforceSet && options.baBehav[ADDSET_RETI_VART] ? toEdit.retinex.vart + mods.retinex.vart : mods.retinex.vart;
+    }
+    
+    if (retinex.dehaz) {
+        toEdit.retinex.dehaz     = mods.retinex.dehaz;
     }
 
     if (retinex.highlights) {

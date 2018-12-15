@@ -434,12 +434,12 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     DIRPYREQUALIZER,  // EvWavlev3nois
     DIRPYREQUALIZER,  // EvWavNPmet
     DEMOSAIC,         // EvretinexMethod
-    RETINEX,          // EvLneigh
+    DEMOSAIC,          // EvLneigh
     RETINEX,          // EvLgain
     RETINEX,          // EvLoffs
-    RETINEX,          // EvLstr
+    DEMOSAIC,          // EvLstr
     RETINEX,          // EvLscal
-    RETINEX,          // EvLvart
+    DEMOSAIC,          // EvLvart
     DEMOSAIC,         // EvLCDCurve
     RETINEX,          // EvRetinextransmission
     DEMOSAIC,         // EvRetinexEnabled

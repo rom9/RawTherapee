@@ -415,6 +415,7 @@ RetinexParams::RetinexParams() :
     gam(1.30),
     slope(3.),
     neigh(80),
+    chrrt(30),
     offs(0),
     highlights(0),
     htonalwidth(80),
@@ -427,6 +428,7 @@ RetinexParams::RetinexParams() :
     mapMethod("none"),
     viewMethod("none"),
     vart(200),
+    dehaz(0),
     limd(8),
     highl(4),
     skal(3),
@@ -452,6 +454,7 @@ bool RetinexParams::operator ==(const RetinexParams& other) const
         && gam == other.gam
         && slope == other.slope
         && neigh == other.neigh
+        && chrrt == other.chrrt
         && offs == other.offs
         && highlights == other.highlights
         && htonalwidth == other.htonalwidth
@@ -464,6 +467,7 @@ bool RetinexParams::operator ==(const RetinexParams& other) const
         && mapMethod == other.mapMethod
         && viewMethod == other.viewMethod
         && vart == other.vart
+        && dehaz == other.dehaz
         && limd == other.limd
         && highl == other.highl
         && skal == other.skal
@@ -2902,8 +2906,10 @@ int ProcParams::save(const Glib::ustring& fname, const Glib::ustring& fname2, bo
         saveToKeyfile(!pedited || pedited->retinex.medianmap, "Retinex", "Median", retinex.medianmap, keyFile);
 
         saveToKeyfile(!pedited || pedited->retinex.neigh, "Retinex", "Neigh", retinex.neigh, keyFile);
+        saveToKeyfile(!pedited || pedited->retinex.chrrt, "Retinex", "Chrrt", retinex.chrrt, keyFile);
         saveToKeyfile(!pedited || pedited->retinex.offs, "Retinex", "Offs", retinex.offs, keyFile);
         saveToKeyfile(!pedited || pedited->retinex.vart, "Retinex", "Vart", retinex.vart, keyFile);
+        saveToKeyfile(!pedited || pedited->retinex.dehaz, "Retinex", "Dehaze", retinex.dehaz, keyFile);
         saveToKeyfile(!pedited || pedited->retinex.limd, "Retinex", "Limd", retinex.limd, keyFile);
         saveToKeyfile(!pedited || pedited->retinex.highl, "Retinex", "highl", retinex.highl, keyFile);
         saveToKeyfile(!pedited || pedited->retinex.skal, "Retinex", "skal", retinex.skal, keyFile);
@@ -3793,6 +3799,7 @@ int ProcParams::load(const Glib::ustring& fname, ParamsEdited* pedited)
             assignFromKeyfile(keyFile, "Retinex", "Gammaretinex", pedited, retinex.gammaretinex, pedited->retinex.gammaretinex);
             assignFromKeyfile(keyFile, "Retinex", "Enabled", pedited, retinex.enabled, pedited->retinex.enabled);
             assignFromKeyfile(keyFile, "Retinex", "Neigh", pedited, retinex.neigh, pedited->retinex.neigh);
+            assignFromKeyfile(keyFile, "Retinex", "Chrrt", pedited, retinex.chrrt, pedited->retinex.chrrt);
             assignFromKeyfile(keyFile, "Retinex", "Str", pedited, retinex.str, pedited->retinex.str);
             assignFromKeyfile(keyFile, "Retinex", "Scal", pedited, retinex.scal, pedited->retinex.scal);
             assignFromKeyfile(keyFile, "Retinex", "Iter", pedited, retinex.iter, pedited->retinex.iter);
@@ -3802,6 +3809,7 @@ int ProcParams::load(const Glib::ustring& fname, ParamsEdited* pedited)
             assignFromKeyfile(keyFile, "Retinex", "Slope", pedited, retinex.slope, pedited->retinex.slope);
             assignFromKeyfile(keyFile, "Retinex", "Offs", pedited, retinex.offs, pedited->retinex.offs);
             assignFromKeyfile(keyFile, "Retinex", "Vart", pedited, retinex.vart, pedited->retinex.vart);
+            assignFromKeyfile(keyFile, "Retinex", "Dehaze", pedited, retinex.dehaz, pedited->retinex.dehaz);
             assignFromKeyfile(keyFile, "Retinex", "Limd", pedited, retinex.limd, pedited->retinex.limd);
             assignFromKeyfile(keyFile, "Retinex", "highl", pedited, retinex.highl, pedited->retinex.highl);
             assignFromKeyfile(keyFile, "Retinex", "skal", pedited, retinex.skal, pedited->retinex.skal);

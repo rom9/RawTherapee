@@ -35,6 +35,8 @@
 #include "improcfun.h"
 #include "rtlensfun.h"
 #include "pdaflinesfilter.h"
+#include "improccoordinator.h"
+
 #include "camconst.h"
 #ifdef _OPENMP
 #include <omp.h>
@@ -453,6 +455,7 @@ RawImageSource::RawImageSource ()
     , red(0, 0)
     , blue(0, 0)
     , rawDirty(true)
+    , ipfo (nullptr, true)        
 {
     camProfile = nullptr;
     embProfile = nullptr;
@@ -2263,8 +2266,37 @@ void RawImageSource::retinexPrepareBuffers(const ColorManagementParams& cmp, con
                 red[i][j] = (*retinexgamtab)[R_];
                 green[i][j] = (*retinexgamtab)[G_];
                 blue[i][j] = (*retinexgamtab)[B_];
+                
             }
         }
+        
+    }
+    
+    if(retinexParams.str != 0 && retinexParams.dehaz != 0) {//dehaz
+           Imagefloat *calchaze = nullptr ;
+           calchaze = new Imagefloat (W, H);
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+
+        for (int i = border; i < H - border; i++ ) {
+            for (int j = border; j < W - border; j++ ) {
+                calchaze->r(i, j) = red[i][j];
+                calchaze->g(i, j) = green[i][j];
+                calchaze->b(i, j) = blue[i][j];                
+            }
+        }
+       ipfo.dehazereti(retinexParams, calchaze);
+        for (int i = border; i < H - border; i++ ) {
+            for (int j = border; j < W - border; j++ ) {
+                red[i][j] = calchaze->r(i, j);
+                green[i][j] = calchaze->g(i, j);
+                blue[i][j] = calchaze->b(i, j);
+                
+            }
+        }
+        delete calchaze;
+        
     }
 
     if(useHsl) {
@@ -2481,6 +2513,7 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
     // red, green and blue still have original size of raw, but we can't use the borders
     const int HNew = H - 2 * border;
     const int WNew = W - 2 * border;
+    int chrome = 0;
 
     array2D<float> LBuffer (WNew, HNew);
     float **temp = conversionBuffer[2]; // one less dereference
@@ -2569,10 +2602,100 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
         }
     }
 
-    MSR(LBuffer, conversionBuffer[2], conversionBuffer[3], mapcurve, mapcontlutili, WNew, HNew, deh, dehatransmissionCurve, dehagaintransmissionCurve, minCD, maxCD, mini, maxi, Tmean, Tsigma, Tmin, Tmax);
+ //   MSR(LBuffer, conversionBuffer[2], conversionBuffer[3], mapcurve, mapcontlutili, WNew, HNew, deh, dehatransmissionCurve, dehagaintransmissionCurve, minCD, maxCD, mini, maxi, Tmean, Tsigma, Tmin, Tmax);
+    MSR(LBuffer, conversionBuffer[2], conversionBuffer[3], mapcurve, mapcontlutili, WNew, HNew, chrome, deh, dehatransmissionCurve, dehagaintransmissionCurve, minCD, maxCD, mini, maxi, Tmean, Tsigma, Tmin, Tmax);
+    chrome = 1;
+    bool chrome2 = deh.chrrt > 0.f;
+
+
+    float *CB_Buffer = nullptr;
+    float *CBuffer[HNew] ALIGNED16;
+    float *CtempBuffer = nullptr;
+    float *Ctemp[HNew] ALIGNED16;
+
+    float *CaBuffer = nullptr;
+    float *Ca[HNew] ALIGNED16;
+    float *CbBuffer = nullptr;
+    float *Cb[HNew] ALIGNED16;
+
+    if (chrome2) {
+        CB_Buffer = new float[WNew * HNew];
+
+        for (int i = 0; i < HNew; i++) {
+            CBuffer[i] = &CB_Buffer[i * WNew];
+        }
+
+        CtempBuffer = new float[WNew * HNew];
+
+        for (int i = 0; i < HNew; i++) {
+            Ctemp[i] = &CtempBuffer[i * WNew];
+        }
+
+        CaBuffer = new float[WNew * HNew];
+
+        for (int i = 0; i < HNew; i++) {
+            Ca[i] = &CaBuffer[i * WNew];
+        }
+
+        CbBuffer = new float[WNew * HNew];
+
+        for (int i = 0; i < HNew; i++) {
+            Cb[i] = &CbBuffer[i * WNew];
+        }
+
+    }
+
+    if (chrome2 && chrome == 1) {
+
+        if (useHsl) {
+
+#ifdef _OPENMP
+            #pragma omp parallel for
+#endif
+
+            for (int i = 0; i < H - 2 * border; i++ ) {
+                if (dehacontlutili)
+                    for (int j = 0; j < W - 2 * border; j++) {
+                        Ctemp[i][j] = 50000.f * conversionBuffer[1][i][j];
+
+                        CBuffer[i][j] = cdcurve[100000.f * conversionBuffer[1][i][j]] / 2.f;
+
+                    }
+                else
+                    for (int j = 0; j < W - 2 * border; j++) {
+                        Ctemp[i][j] = 50000.f * conversionBuffer[1][i][j];
+
+                        CBuffer[i][j] = 50000.f * conversionBuffer[1][i][j];
+                    }
+            }
+        } else {
+#ifdef _OPENMP
+            #pragma omp parallel for
+#endif
+
+            for (int i = 0; i < H - 2 * border; i++ ) {
+                if (dehacontlutili)
+                    for (int j = 0; j < W - 2 * border; j++) {
+                        Ctemp[i][j] =  sqrt (SQR (conversionBuffer[0][i][j]) + SQR (conversionBuffer[1][i][j]));
+                        float temp = Ctemp[i][j];
+                        CBuffer[i][j] = cdcurve[2.f * temp] / 2.f;
+
+                    }
+                else
+                    for (int j = 0; j < W - 2 * border; j++) {
+                        Ctemp[i][j] = sqrt (SQR (conversionBuffer[0][i][j]) + SQR (conversionBuffer[1][i][j]));
+                        CBuffer[i][j] = Ctemp[i][j];
+                    }
+            }
+
+        }
+
+//Ctemp
+        MSR (CBuffer, Ctemp, conversionBuffer[3], mapcurve, mapcontlutili, WNew, HNew, chrome, deh, dehatransmissionCurve, dehagaintransmissionCurve, minCD, maxCD, mini, maxi, Tmean, Tsigma, Tmin, Tmax);
+    }
 
     if(useHsl) {
-        if(chutili) {
+        if (chutili) {
 #ifdef _OPENMP
             #pragma omp parallel for
 #endif
@@ -2582,8 +2705,14 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
 
                 for (; j < W - border; j++) {
 
-                    float valp = (chcurve->getVal(conversionBuffer[3][i - border][j - border]) - 0.5f);
-                    conversionBuffer[1][i - border][j - border] *= (1.f + 2.f * valp);
+                    float valp = (chcurve->getVal (conversionBuffer[3][i - border][j - border]) - 0.5f);
+
+                    if (!chrome2) {
+                        conversionBuffer[1][i - border][j - border] *= (1.f + 2.f * valp);
+                    } else {
+                        CBuffer[i - border][j - border] *= (1.f + 2.f * valp);
+                    }
+
 
                 }
             }
@@ -2596,23 +2725,36 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
         for (int i = border; i < H - border; i++ ) {
             int j = border;
 #ifdef __SSE2__
-            vfloat c32768 = F2V(32768.f);
+            vfloat c32768 = F2V (32768.f);
+            vfloat c50000 = F2V (50000.f);
 
             for (; j < W - border - 3; j += 4) {
                 vfloat R, G, B;
-                Color::hsl2rgb(LVFU(conversionBuffer[0][i - border][j - border]), LVFU(conversionBuffer[1][i - border][j - border]), LVFU(LBuffer[i - border][j - border]) / c32768, R, G, B);
 
-                STVFU(red[i][j], R);
-                STVFU(green[i][j], G);
-                STVFU(blue[i][j], B);
+                if (!chrome2) {
+                    Color::hsl2rgb (LVFU (conversionBuffer[0][i - border][j - border]), LVFU (conversionBuffer[1][i - border][j - border]), LVFU (LBuffer[i - border][j - border]) / c32768, R, G, B);
+                } else {
+                    Color::hsl2rgb (LVFU (conversionBuffer[0][i - border][j - border]), LVFU (CBuffer[i - border][j - border]) / c50000, LVFU (LBuffer[i - border][j - border]) / c32768, R, G, B);
+                }
+
+                STVFU (red[i][j], R);
+                STVFU (green[i][j], G);
+                STVFU (blue[i][j], B);
             }
 
 #endif
 
             for (; j < W - border; j++) {
-                Color::hsl2rgbfloat(conversionBuffer[0][i - border][j - border], conversionBuffer[1][i - border][j - border], LBuffer[i - border][j - border] / 32768.f, red[i][j], green[i][j], blue[i][j]);
+                if (!chrome2) {
+                    Color::hsl2rgbfloat (conversionBuffer[0][i - border][j - border], conversionBuffer[1][i - border][j - border], LBuffer[i - border][j - border] / 32768.f, red[i][j], green[i][j], blue[i][j]);
+                } else {
+                    Color::hsl2rgbfloat (conversionBuffer[0][i - border][j - border], CBuffer[i - border][j - border] / 50000.f, LBuffer[i - border][j - border] / 32768.f, red[i][j], green[i][j], blue[i][j]);
+                }
+
             }
         }
+
+
 
     } else {
         TMatrix wiprof = ICCStore::getInstance()->workingSpaceInverseMatrix (cmp.workingProfile);
@@ -2630,75 +2772,107 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
         {
 #ifdef __SSE2__
             // we need some line buffers to precalculate some expensive stuff using SSE
-            float atan2Buffer[W] ALIGNED16;
-            float sqrtBuffer[W] ALIGNED16;
-            float sincosxBuffer[W] ALIGNED16;
-            float sincosyBuffer[W] ALIGNED16;
-            const vfloat c327d68v = F2V(327.68);
-            const vfloat onev = F2V(1.f);
+//            float atan2Buffer[W] ALIGNED16;
+//            float sqrtBuffer[W] ALIGNED16;
+//            float sincosxBuffer[W] ALIGNED16;
+//            float sincosyBuffer[W] ALIGNED16;
+//            const vfloat c327d68v = F2V (327.68);
+//            const vfloat onev = F2V (1.f);
+//            const vfloat zer = F2V (0.f);
 #endif // __SSE2__
 #ifdef _OPENMP
             #pragma omp for
 #endif
 
             for (int i = border; i < H - border; i++ ) {
-#ifdef __SSE2__
-                // vectorized precalculation
-                {
-                    int j = border;
+                /*
+                #ifdef __SSE2__
+                                // vectorized precalculation
+                                {
+                                    int j = border;
+                                    vfloat chprovv;
+                                    vfloat chprovv2;
+                                    vfloat av = zer;
+                                    vfloat bv = zer;
 
-                    for (; j < W - border - 3; j += 4)
-                    {
-                        vfloat av = LVFU(conversionBuffer[0][i - border][j - border]);
-                        vfloat bv = LVFU(conversionBuffer[1][i - border][j - border]);
-                        vfloat chprovv = vsqrtf(SQRV(av) + SQRV(bv));
-                        STVF(sqrtBuffer[j - border], chprovv / c327d68v);
-                        vfloat HHv = xatan2f(bv, av);
-                        STVF(atan2Buffer[j - border], HHv);
-                        av /= chprovv;
-                        bv /= chprovv;
-                        vmask selMask = vmaskf_eq(chprovv, ZEROV);
-                        STVF(sincosyBuffer[j - border], vself(selMask, onev, av));
-                        STVF(sincosxBuffer[j - border], vselfnotzero(selMask, bv));
-                    }
 
-                    for (; j < W - border; j++)
-                    {
-                        float aa = conversionBuffer[0][i - border][j - border];
-                        float bb = conversionBuffer[1][i - border][j - border];
-                        float Chprov1 = sqrt(SQR(aa) + SQR(bb)) / 327.68f;
-                        sqrtBuffer[j - border] = Chprov1;
-                        float HH = xatan2f(bb, aa);
-                        atan2Buffer[j - border] = HH;
+                                    for (; j < W - border - 3; j += 4)
+                                    {
+                                            av = LVFU (conversionBuffer[0][i - border][j - border]);
+                                            bv = LVFU (conversionBuffer[1][i - border][j - border]);
+                                        if (!chrome2) {
+                                            chprovv = vsqrtf (SQRV (av) + SQRV (bv));
+                                        } else {
+                                            chprovv2 = LVFU (CBuffer[i - border][j - border]);
+                                        }
 
-                        if(Chprov1 == 0.0f) {
-                            sincosyBuffer[j - border] = 1.f;
-                            sincosxBuffer[j - border] = 0.0f;
-                        } else {
-                            sincosyBuffer[j - border] = aa / (Chprov1 * 327.68f);
-                            sincosxBuffer[j - border] = bb / (Chprov1 * 327.68f);
-                        }
-                    }
-                }
-#endif // __SSE2__
+                                        STVF (sqrtBuffer[j - border], chprovv / c327d68v);
+                                        vfloat HHv = xatan2f (bv, av);
+                                        STVF (atan2Buffer[j - border], HHv);
+                                        av /= chprovv;
+                                        bv /= chprovv;
+                                        vmask selMask = vmaskf_eq (chprovv, ZEROV);
+                                        STVF (sincosyBuffer[j - border], vself (selMask, onev, av));
+                                        STVF (sincosxBuffer[j - border], vselfnotzero (selMask, bv));
+                                    }
 
+                                    float Chprov1 = 0.f, Chprov2 = 0.f, aa = 0.f, bb = 0.f;
+
+                                    for (; j < W - border; j++)
+                                    {
+                                            aa = conversionBuffer[0][i - border][j - border];
+                                            bb = conversionBuffer[1][i - border][j - border];
+                                        if (!chrome2) {
+
+                                            Chprov1 = sqrt (SQR (aa) + SQR (bb)) / 327.68f;
+                                        } else {
+                                            Chprov2 = CBuffer[i - border][j - border] / 327.68f;
+                                        }
+
+                                        sqrtBuffer[j - border] = Chprov1;
+                                        float HH = xatan2f (bb, aa);
+                                        atan2Buffer[j - border] = HH;
+
+                                        if (Chprov1 == 0.0f) {
+                                            sincosyBuffer[j - border] = 1.f;
+                                            sincosxBuffer[j - border] = 0.0f;
+                                        } else {
+                                            sincosyBuffer[j - border] = aa / (Chprov1 * 327.68f);
+                                            sincosxBuffer[j - border] = bb / (Chprov1 * 327.68f);
+                                        }
+                                    }
+                                }
+                #endif // __SSE2__
+                */
                 for (int j = border; j < W - border; j++) {
                     float Lprov1 = (LBuffer[i - border][j - border]) / 327.68f;
-#ifdef __SSE2__
-                    float Chprov1 = sqrtBuffer[j - border];
-                    float  HH = atan2Buffer[j - border];
-                    float2 sincosval;
-                    sincosval.x = sincosxBuffer[j - border];
-                    sincosval.y = sincosyBuffer[j - border];
+                    /*
+                    #ifdef __SSE2__
+                                        float Chprov1 = sqrtBuffer[j - border];
+                                        float Chprov2 = (CBuffer[i - border][j - border]) / 327.68f;
+                                        float  HH = atan2Buffer[j - border];
+                                        float2 sincosval;
+                                        sincosval.x = sincosxBuffer[j - border];
+                                        sincosval.y = sincosyBuffer[j - border];
 
-#else
-                    float aa = conversionBuffer[0][i - border][j - border];
-                    float bb = conversionBuffer[1][i - border][j - border];
-                    float Chprov1 = sqrt(SQR(aa) + SQR(bb)) / 327.68f;
-                    float  HH = xatan2f(bb, aa);
+                    #else
+                    */
+
+                    float Chprov1 = 0.f, Chprov2 = 0.f, aa = 0.f, bb = 0.f;
+                    aa = conversionBuffer[0][i - border][j - border];
+                    bb = conversionBuffer[1][i - border][j - border];
+
+                    if (!chrome2) {
+                        Chprov1 = sqrt (SQR (aa) + SQR (bb)) / 327.68f;
+                    } else {
+                        Chprov1 = Ctemp[i - border][j - border] / 327.68f;
+                        Chprov2 = CBuffer[i - border][j - border] / 327.68f;
+                    }
+
+                    float  HH = xatan2f (bb, aa);
                     float2 sincosval;// = xsincosf(HH);
 
-                    if(Chprov1 == 0.0f) {
+                    if (Chprov1 == 0.0f) {
                         sincosval.y = 1.f;
                         sincosval.x = 0.0f;
                     } else {
@@ -2706,28 +2880,46 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
                         sincosval.x = bb / (Chprov1 * 327.68f);
                     }
 
-#endif
+//#endif
+                    if (chutili) { // c=f(H)
+                        float valp = float ((chcurve->getVal (Color::huelab_to_huehsv2 (HH)) - 0.5f));
 
-                    if(chutili) {  // c=f(H)
-                        float valp = float((chcurve->getVal(Color::huelab_to_huehsv2(HH)) - 0.5f));
-                        Chprov1 *= (1.f + 2.f * valp);
+                        if (!chrome2) {
+                            Chprov1 *= (1.f + 2.f * valp);
+                        } else {
+                            Chprov2 *= (1.f + 2.f * valp);
+                        }
                     }
 
                     float R, G, B;
+                    float interm ;
+
+                    if (!chrome2) {
+                        interm = Chprov1;
+                    } else {
+                        interm = Chprov2;
+                    }
+
 #ifdef _DEBUG
                     bool neg = false;
                     bool more_rgb = false;
                     //gamut control : Lab values are in gamut
-                    Color::gamutLchonly(HH, sincosval, Lprov1, Chprov1, R, G, B, wip, highlight, 0.15f, 0.96f, neg, more_rgb);
+                    Color::gamutLchonly (HH, sincosval, Lprov1, interm, R, G, B, wip, highlight, 0.15f, 0.96f, neg, more_rgb);
 #else
                     //gamut control : Lab values are in gamut
-                    Color::gamutLchonly(HH, sincosval, Lprov1, Chprov1, R, G, B, wip, highlight, 0.15f, 0.96f);
+                    Color::gamutLchonly (HH, sincosval, Lprov1, interm, R, G, B, wip, highlight, 0.15f, 0.96f);
 #endif
 
 
+                    if (!chrome2) {
+                        conversionBuffer[0][i - border][j - border] = 327.68f * Chprov1 * sincosval.y;
+                        conversionBuffer[1][i - border][j - border] = 327.68f * Chprov1 * sincosval.x;
+                    } else {
+                        Ca[i - border][j - border] = 327.68f * Chprov2 * sincosval.y;
+                        Cb[i - border][j - border] = 327.68f * Chprov2 * sincosval.x;
 
-                    conversionBuffer[0][i - border][j - border] = 327.68f * Chprov1 * sincosval.y;
-                    conversionBuffer[1][i - border][j - border] = 327.68f * Chprov1 * sincosval.x;
+                    }
+
                     LBuffer[i - border][j - border] = Lprov1 * 327.68f;
                 }
             }
@@ -2753,7 +2945,14 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
             for (; j < W - border - 3; j += 4) {
                 vfloat x_, y_, z_;
                 vfloat R, G, B;
-                Color::Lab2XYZ(LVFU(LBuffer[i - border][j - border]), LVFU(conversionBuffer[0][i - border][j - border]), LVFU(conversionBuffer[1][i - border][j - border]), x_, y_, z_) ;
+                
+                if (!chrome2) {
+
+                    Color::Lab2XYZ (LVFU (LBuffer[i - border][j - border]), LVFU (conversionBuffer[0][i - border][j - border]), LVFU (conversionBuffer[1][i - border][j - border]), x_, y_, z_) ;
+                } else {
+                    Color::Lab2XYZ (LVFU (LBuffer[i - border][j - border]), LVFU (Ca[i - border][j - border]), LVFU (Cb[i - border][j - border]), x_, y_, z_) ;
+
+                }
                 Color::xyz2rgb(x_, y_, z_, R, G, B, wipv);
 
                 STVFU(red[i][j], R);
@@ -2767,13 +2966,30 @@ void RawImageSource::retinex(const ColorManagementParams& cmp, const RetinexPara
             for (; j < W - border; j++) {
                 float x_, y_, z_;
                 float R, G, B;
-                Color::Lab2XYZ(LBuffer[i - border][j - border], conversionBuffer[0][i - border][j - border], conversionBuffer[1][i - border][j - border], x_, y_, z_) ;
+                
+                if (!chrome2) {
+
+                    Color::Lab2XYZ (LBuffer[i - border][j - border], conversionBuffer[0][i - border][j - border], conversionBuffer[1][i - border][j - border], x_, y_, z_) ;
+                } else {
+                    Color::Lab2XYZ (LBuffer[i - border][j - border], Ca[i - border][j - border], Cb[i - border][j - border], x_, y_, z_) ;
+
+                }
+                
+ //               Color::Lab2XYZ(LBuffer[i - border][j - border], conversionBuffer[0][i - border][j - border], conversionBuffer[1][i - border][j - border], x_, y_, z_) ;
                 Color::xyz2rgb(x_, y_, z_, R, G, B, wip);
                 red[i][j] = R;
                 green[i][j] = G;
                 blue[i][j] = B;
             }
         }
+        
+        if (chrome2) {
+            delete [] CbBuffer;
+            delete [] CaBuffer;
+            delete [] CtempBuffer;
+            delete [] CB_Buffer;
+        }
+        
     }
 
     if (chcurve) {
