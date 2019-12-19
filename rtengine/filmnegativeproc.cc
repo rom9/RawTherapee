@@ -21,6 +21,8 @@
 
 #include "rawimage.h"
 #include "rawimagesource.h"
+#include "stdimagesource.h"
+#include "imagefloat.h"
 
 #include "coord.h"
 #include "mytime.h"
@@ -90,6 +92,48 @@ bool channelsAvg(
 
     return true;
 }
+
+bool channelsAvg(
+    const rtengine::Imagefloat* img,
+    int width,
+    int height,
+    rtengine::Coord spotPos,
+    int spotSize,
+    std::array<float, 3>& avgs
+)
+{
+    avgs = {}; // Channel averages
+
+    if (settings->verbose) {
+        printf("Spot coord:  x=%d y=%d\n", spotPos.x, spotPos.y);
+    }
+
+    const int half_spot_size = spotSize / 2;
+
+    const int& x1 = spotPos.x - half_spot_size;
+    const int& x2 = spotPos.x + half_spot_size;
+    const int& y1 = spotPos.y - half_spot_size;
+    const int& y2 = spotPos.y + half_spot_size;
+
+    if (x1 < 0 || x2 > width || y1 < 0 || y2 > height) {
+        return false; // Spot goes outside bounds, bail out.
+    }
+
+    for (int c = x1; c < x2; ++c) {
+        for (int r = y1; r < y2; ++r) {
+            avgs[0] += img->r(r,c);
+            avgs[1] += img->g(r,c);
+            avgs[2] += img->b(r,c);
+        }
+    }
+
+    for (int ch = 0; ch < 3; ++ch) {
+        avgs[ch] /= (spotSize*spotSize);
+    }
+
+    return true;
+}
+
 
 void calcMedians(
     const rtengine::RawImage* ri,
@@ -554,4 +598,192 @@ void rtengine::RawImageSource::filmNegativeProcess(const procparams::FilmNegativ
         printf("Bad pixels count: %d\n", totBP);
         printf("Bad pixels interpolation time us: %d\n", t3.etime(t2));
     }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+bool rtengine::StdImageSource::getFilmNegativeExponents(Coord2D spotA, Coord2D spotB, int tran, const procparams::FilmNegativeParams &currentParams, std::array<float, 3>& newExps)
+{
+//    using rtengine::Imagefloat;
+
+    if(!imgCopy) {
+        imgCopy = new Imagefloat(img->getWidth(), img->getHeight());
+        img->getStdImage(wb, 0, imgCopy, PreviewProps(0,0,img->getWidth(), img->getHeight(), 1));
+    }
+
+
+    newExps = {
+        static_cast<float>(currentParams.redRatio * currentParams.greenExp),
+        static_cast<float>(currentParams.greenExp),
+        static_cast<float>(currentParams.blueRatio * currentParams.greenExp)
+    };
+
+    constexpr int spotSize = 32; // TODO: Make this configurable?
+
+    Coord spot;
+    std::array<float, 3> clearVals;
+    std::array<float, 3> denseVals;
+
+    // Get channel averages in the two spots, sampling from the original ri->data buffer.
+    // NOTE: rawData values might be affected by CA corection, FlatField, etc, so:
+    //   rawData[y][x] == (ri->data[y][x] - cblacksom[c]) * scale_mul[c]
+    // is not always true. To calculate exponents on the exact values, we should keep
+    // a copy of the rawData buffer after preprocessing. Worth the memory waste?
+
+    // Sample first spot
+    imgCopy->transformPixel(spotA.x, spotA.y, tran, spot.x, spot.y);
+
+    if (!channelsAvg(imgCopy, imgCopy->getWidth(), imgCopy->getHeight(), spot, spotSize, clearVals)) {
+        return false;
+    }
+
+    // Sample second spot
+    imgCopy->transformPixel(spotB.x, spotB.y, tran, spot.x, spot.y);
+
+    if (!channelsAvg(imgCopy, imgCopy->getWidth(), imgCopy->getHeight(), spot, spotSize, denseVals)) {
+        return false;
+    }
+
+    // Detect which one is the dense spot, based on green channel
+    if (clearVals[1] < denseVals[1]) {
+        std::swap(clearVals, denseVals);
+    }
+
+    if (settings->verbose) {
+        printf("Clear film values: R=%g G=%g B=%g\n", clearVals[0], clearVals[1], clearVals[2]);
+        printf("Dense film values: R=%g G=%g B=%g\n", denseVals[0], denseVals[1], denseVals[2]);
+    }
+
+    const float denseGreenRatio = clearVals[1] / denseVals[1];
+
+    // Calculate logarithms in arbitrary base
+    const auto logBase =
+        [](float base, float num) -> float
+        {
+            return std::log(num) / std::log(base);
+        };
+
+    // Calculate exponents for each channel, based on the ratio between the bright and dark values,
+    // compared to the ratio in the reference channel (green)
+    for (int ch = 0; ch < 3; ++ch) {
+        if (ch == 1) {
+            newExps[ch] = 1.f;  // Green is the reference channel
+        } else {
+            newExps[ch] = CLAMP(logBase(clearVals[ch] / denseVals[ch], denseGreenRatio), 0.3f, 4.f);
+        }
+    }
+
+    if (settings->verbose) {
+        printf("New exponents:  R=%g G=%g B=%g\n", newExps[0], newExps[1], newExps[2]);
+    }
+
+    return true;
+}
+
+void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativeParams &params, std::array<float, 3>& filmBaseValues)
+{
+    printf("####NonRaw neg proc!!!!\n");
+
+    if(!imgCopy) {
+        printf("ONCE!!!!!!\n");
+        imgCopy = new Imagefloat(img->getWidth(), img->getHeight());
+        img->getStdImage(wb, 0, imgCopy, PreviewProps(0,0,img->getWidth(), img->getHeight(), 1));
+    }
+
+    // Destroy old buffer
+    img->allocate(0,0);
+    delete img;
+
+    // Overwrite working buffer with a copy of the float version
+    Imagefloat* posImg = imgCopy->copy();
+    img = posImg;
+
+//    static ImageIO *origImg = img;
+
+
+    // if(img != origImg) {
+    //     printf("####CLEAN!!!!!!!!!\n");
+    //     img->allocate(0,0);
+    //     delete img;
+    // }
+
+//    img = posImg;
+
+            float rexp = -(params.greenExp * params.redRatio); // 2.2f;
+            float gexp = -params.greenExp;  // 2.2f;
+            float bexp = -(params.greenExp * params.blueRatio); // 2.2f;
+            float rmult, gmult, bmult;
+
+
+            {
+
+
+                // // Read film-base values from params
+                // float rbase = 65535.f * 0.3569f;
+                // float gbase = 65535.f * 0.4196f;
+                // float bbase = 65535.f * 0.4118f;
+
+                // Channel vectors to calculate medians
+                std::vector<float> rv, gv, bv;
+
+                const int sz = imgCopy->getWidth() * imgCopy->getHeight();
+                rv.reserve(sz);
+                gv.reserve(sz);
+                bv.reserve(sz);
+
+
+                for (int ii = 0; ii < imgCopy->getHeight(); ii ++) {
+                    for (int jj = 0; jj < imgCopy->getWidth(); jj ++) {
+                        rv.push_back( imgCopy->r (ii, jj) );
+                        gv.push_back( imgCopy->g (ii, jj) );
+                        bv.push_back( imgCopy->b (ii, jj) );
+                    }
+                }
+
+                float rmed, gmed, bmed;
+                // Calculate channel medians from whole image
+                findMinMaxPercentile(rv.data(), rv.size(), 0.5f, rmed, 0.5f, rmed, true);
+                findMinMaxPercentile(gv.data(), gv.size(), 0.5f, gmed, 0.5f, gmed, true);
+                findMinMaxPercentile(bv.data(), bv.size(), 0.5f, bmed, 0.5f, bmed, true);
+
+                // Apply exponents to get output film base values
+                rmed = powf(rmed, rexp);
+                gmed = powf(gmed, gexp);
+                bmed = powf(bmed, bexp);
+
+                // Calculate multipliers so that film base value is 1/512th of the output range.
+                rmult = (MAXVALF / 4.f) / rmed;
+                gmult = (MAXVALF / 4.f) / gmed;
+                bmult = (MAXVALF / 4.f) / bmed;
+
+            }
+
+            {
+
+
+                for (int i = 0; i < imgCopy->getHeight(); i++) {
+                    for (int j = 0; j < imgCopy->getWidth(); j++) {
+                        if(i>100 && i<200) {
+                            imgCopy->r(i,j) = CLIP(j*10);
+                            imgCopy->g(i,j) = CLIP(j*10);
+                            imgCopy->b(i,j) = CLIP(j*10);
+                            continue;
+                        }
+                        posImg->r(i,j) = CLIP(rmult * pow_F( imgCopy->r(i,j) , rexp));
+                        posImg->g(i,j) = CLIP(gmult * pow_F( imgCopy->g(i,j) , gexp));
+                        posImg->b(i,j) = CLIP(bmult * pow_F( imgCopy->b(i,j) , bexp));
+                    }
+
+                }
+            }
+
 }

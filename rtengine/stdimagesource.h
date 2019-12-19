@@ -47,6 +47,7 @@ protected:
     bool full;
     int max[3];
     bool rgbSourceModified;
+    Imagefloat* imgCopy;
 
     //void transformPixel             (int x, int y, int tran, int& tx, int& ty);
     void getSampleFormat (const Glib::ustring &fname, IIOSampleFormat &sFormat, IIOSampleArrangement &sArrangement);
@@ -116,6 +117,10 @@ public:
 
     void        flushRGB          () override;
     void captureSharpening(const procparams::CaptureSharpeningParams &sharpeningParams, bool showMask, double &conrastThreshold, double &radius) override {};
+
+    void        filmNegativeProcess (const procparams::FilmNegativeParams &params, std::array<float, 3>& filmBaseValues) override;
+    bool        getFilmNegativeExponents (Coord2D spotA, Coord2D spotB, int tran, const procparams::FilmNegativeParams &currentParams, std::array<float, 3>& newExps) override;
+
 };
 
 }

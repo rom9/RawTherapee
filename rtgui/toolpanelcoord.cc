@@ -119,6 +119,7 @@ ToolPanelCoordinator::ToolPanelCoordinator (bool batch) : ipc (nullptr), favorit
     addfavoritePanel (detailsPanel, sharpenMicro);
     addfavoritePanel (colorPanel, hsvequalizer);
     addfavoritePanel (colorPanel, filmSimulation);
+    addfavoritePanel (colorPanel, filmNegative);
     addfavoritePanel (colorPanel, softlight);
     addfavoritePanel (colorPanel, rgbcurves);
     addfavoritePanel (colorPanel, colortoning);
@@ -158,7 +159,6 @@ ToolPanelCoordinator::ToolPanelCoordinator (bool batch) : ipc (nullptr), favorit
     addfavoritePanel (rawPanel, preprocess);
     addfavoritePanel (rawPanel, darkframe);
     addfavoritePanel (rawPanel, flatfield);
-    addfavoritePanel (rawPanel, filmNegative);
     addfavoritePanel (rawPanel, pdSharpening);
 
     int favoriteCount = 0;
@@ -312,7 +312,7 @@ void ToolPanelCoordinator::imageTypeChanged (bool isRaw, bool isBayer, bool isXt
                     sensorbayer->FoldableToolPanel::show();
                     preprocess->FoldableToolPanel::show();
                     flatfield->FoldableToolPanel::show();
-                    filmNegative->FoldableToolPanel::show();
+//                    filmNegative->FoldableToolPanel::show();
                     pdSharpening->FoldableToolPanel::show();
                     retinex->FoldableToolPanel::setGrayedOut(false);
 
@@ -329,7 +329,7 @@ void ToolPanelCoordinator::imageTypeChanged (bool isRaw, bool isBayer, bool isXt
                     sensorbayer->FoldableToolPanel::hide();
                     preprocess->FoldableToolPanel::show();
                     flatfield->FoldableToolPanel::show();
-                    filmNegative->FoldableToolPanel::show();
+//                    filmNegative->FoldableToolPanel::show();
                     pdSharpening->FoldableToolPanel::show();
                     retinex->FoldableToolPanel::setGrayedOut(false);
 
@@ -346,7 +346,7 @@ void ToolPanelCoordinator::imageTypeChanged (bool isRaw, bool isBayer, bool isXt
                     sensorxtrans->FoldableToolPanel::hide();
                     preprocess->FoldableToolPanel::hide();
                     flatfield->FoldableToolPanel::show();
-                    filmNegative->FoldableToolPanel::hide();
+//                    filmNegative->FoldableToolPanel::hide();
                     pdSharpening->FoldableToolPanel::show();
                     retinex->FoldableToolPanel::setGrayedOut(false);
 
@@ -362,7 +362,7 @@ void ToolPanelCoordinator::imageTypeChanged (bool isRaw, bool isBayer, bool isXt
                     sensorxtrans->FoldableToolPanel::hide();
                     preprocess->FoldableToolPanel::hide();
                     flatfield->FoldableToolPanel::hide();
-                    filmNegative->FoldableToolPanel::hide();
+//                    filmNegative->FoldableToolPanel::hide();
                     pdSharpening->FoldableToolPanel::hide();
                     retinex->FoldableToolPanel::setGrayedOut(false);
 
@@ -375,7 +375,7 @@ void ToolPanelCoordinator::imageTypeChanged (bool isRaw, bool isBayer, bool isXt
             [this]() -> bool
             {
                 rawPanelSW->set_sensitive(false);
-                filmNegative->FoldableToolPanel::hide();
+//                filmNegative->FoldableToolPanel::hide();
                 pdSharpening->FoldableToolPanel::hide();
                 retinex->FoldableToolPanel::setGrayedOut(true);
 

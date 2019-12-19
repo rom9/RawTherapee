@@ -27,6 +27,7 @@
 #include "mytime.h"
 #include "procparams.h"
 #include "utils.h"
+#include "rt_algo.h"
 
 #undef THREAD_PRIORITY_NORMAL
 
@@ -54,7 +55,7 @@ template<class T> T** allocArray (int W, int H)
 }
 
 #define HR_SCALE 2
-StdImageSource::StdImageSource () : ImageSource(), img(nullptr), plistener(nullptr), full(false), max{}, rgbSourceModified(false)
+StdImageSource::StdImageSource () : ImageSource(), img(nullptr), plistener(nullptr), full(false), max{}, rgbSourceModified(false), imgCopy(nullptr)
 {
 
     embProfile = nullptr;
@@ -343,6 +344,12 @@ ColorTemp StdImageSource::getSpotWB (std::vector<Coord2D> &red, std::vector<Coor
 
 void StdImageSource::flushRGB() {
     img->allocate(0, 0);
+    printf("####flush!!!!\n");
+    if(imgCopy) {
+        imgCopy->allocate(0, 0);
+        delete imgCopy;
+        imgCopy = nullptr;
+    }
 };
 
 
