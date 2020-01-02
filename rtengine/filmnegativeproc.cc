@@ -718,58 +718,57 @@ void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativ
 
 //    img = posImg;
 
-            float rexp = -(params.greenExp * params.redRatio); // 2.2f;
-            float gexp = -params.greenExp;  // 2.2f;
-            float bexp = -(params.greenExp * params.blueRatio); // 2.2f;
-            float rmult, gmult, bmult;
+    float rexp = -(params.greenExp * params.redRatio); // 2.2f;
+    float gexp = -params.greenExp;  // 2.2f;
+    float bexp = -(params.greenExp * params.blueRatio); // 2.2f;
+    float rmult, gmult, bmult;
 
 
-            {
+    {
 
 
-                // // Read film-base values from params
-                // float rbase = 65535.f * 0.3569f;
-                // float gbase = 65535.f * 0.4196f;
-                // float bbase = 65535.f * 0.4118f;
+        // // Read film-base values from params
+        // float rbase = 65535.f * 0.3569f;
+        // float gbase = 65535.f * 0.4196f;
+        // float bbase = 65535.f * 0.4118f;
 
-                // Channel vectors to calculate medians
-                std::vector<float> rv, gv, bv;
+        // Channel vectors to calculate medians
+        std::vector<float> rv, gv, bv;
 
-                const int sz = imgCopy->getWidth() * imgCopy->getHeight();
-                rv.reserve(sz);
-                gv.reserve(sz);
-                bv.reserve(sz);
+        const int sz = imgCopy->getWidth() * imgCopy->getHeight();
+        rv.reserve(sz);
+        gv.reserve(sz);
+        bv.reserve(sz);
 
 
-                for (int ii = 0; ii < imgCopy->getHeight(); ii ++) {
-                    for (int jj = 0; jj < imgCopy->getWidth(); jj ++) {
-                        rv.push_back( imgCopy->r (ii, jj) );
-                        gv.push_back( imgCopy->g (ii, jj) );
-                        bv.push_back( imgCopy->b (ii, jj) );
-                    }
-                }
-
-                float rmed, gmed, bmed;
-                // Calculate channel medians from whole image
-                findMinMaxPercentile(rv.data(), rv.size(), 0.5f, rmed, 0.5f, rmed, true);
-                findMinMaxPercentile(gv.data(), gv.size(), 0.5f, gmed, 0.5f, gmed, true);
-                findMinMaxPercentile(bv.data(), bv.size(), 0.5f, bmed, 0.5f, bmed, true);
-
-                // Apply exponents to get output film base values
-                rmed = powf(rmed, rexp);
-                gmed = powf(gmed, gexp);
-                bmed = powf(bmed, bexp);
-
-                // Calculate multipliers so that film base value is 1/512th of the output range.
-                rmult = (MAXVALF / 4.f) / rmed;
-                gmult = (MAXVALF / 4.f) / gmed;
-                bmult = (MAXVALF / 4.f) / bmed;
-
+        for (int ii = 0; ii < imgCopy->getHeight(); ii ++) {
+            for (int jj = 0; jj < imgCopy->getWidth(); jj ++) {
+                rv.push_back( imgCopy->r (ii, jj) );
+                gv.push_back( imgCopy->g (ii, jj) );
+                bv.push_back( imgCopy->b (ii, jj) );
             }
+        }
 
+        float rmed, gmed, bmed;
+        // Calculate channel medians from whole image
+        findMinMaxPercentile(rv.data(), rv.size(), 0.5f, rmed, 0.5f, rmed, true);
+        findMinMaxPercentile(gv.data(), gv.size(), 0.5f, gmed, 0.5f, gmed, true);
+        findMinMaxPercentile(bv.data(), bv.size(), 0.5f, bmed, 0.5f, bmed, true);
+
+        // Apply exponents to get output film base values
+        rmed = powf(rmed, rexp);
+        gmed = powf(gmed, gexp);
+        bmed = powf(bmed, bexp);
+
+        // Calculate multipliers so that film base value is 1/512th of the output range.
+        rmult = (MAXVALF / 4.f) / rmed;
+        gmult = (MAXVALF / 4.f) / gmed;
+        bmult = (MAXVALF / 4.f) / bmed;
+
+    }
+
+/*
             {
-
-
                 for (int i = 0; i < imgCopy->getHeight(); i++) {
                     for (int j = 0; j < imgCopy->getWidth(); j++) {
                         if(i>100 && i<200) {
@@ -785,5 +784,47 @@ void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativ
 
                 }
             }
+*/
+
+#ifdef __SSE2__
+    const vfloat clipv = F2V(MAXVALF);
+    const vfloat rexpv = F2V(rexp);
+    const vfloat gexpv = F2V(gexp);
+    const vfloat bexpv = F2V(bexp);
+    const vfloat rmultv = F2V(rmult);
+    const vfloat gmultv = F2V(gmult);
+    const vfloat bmultv = F2V(bmult);
+#endif
+
+    const int rheight = imgCopy->getHeight();
+    const int rwidth = imgCopy->getWidth();
+
+    for (int i = 0; i < rheight; i++) {
+        float *rlinein = imgCopy->r(i);
+        float *glinein = imgCopy->g(i);
+        float *blinein = imgCopy->b(i);
+        float *rlineout = posImg->r(i);
+        float *glineout = posImg->g(i);
+        float *blineout = posImg->b(i);
+        int j = 0;
+#ifdef __SSE2__
+
+        for (; j < rwidth - 3; j += 4) {
+            STVFU(rlineout[j], vminf(rmultv * pow_F(LVFU(rlinein[j]), rexpv), clipv));
+            STVFU(glineout[j], vminf(gmultv * pow_F(LVFU(glinein[j]), gexpv), clipv));
+            STVFU(blineout[j], vminf(bmultv * pow_F(LVFU(blinein[j]), bexpv), clipv));
+        }
+
+#endif
+
+        for (; j < rwidth; ++j) {
+            rlineout[j] = CLIP(rmult * pow_F(rlinein[j], rexp));
+            glineout[j] = CLIP(gmult * pow_F(glinein[j], gexp));
+            blineout[j] = CLIP(bmult * pow_F(blinein[j], bexp));
+        }
+    }
+
+
+
 
 }
