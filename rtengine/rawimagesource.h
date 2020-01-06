@@ -119,7 +119,7 @@ public:
 
     int load(const Glib::ustring &fname) override { return load(fname, false); }
     int load(const Glib::ustring &fname, bool firstFrameOnly);
-    void        preprocess  (const procparams::RAWParams &raw, const procparams::LensProfParams &lensProf, const procparams::CoarseTransformParams& coarse, bool prepareDenoise = true) override;
+    void        preprocess  (const procparams::RAWParams &raw, const procparams::LensProfParams &lensProf, const procparams::CoarseTransformParams& coarse, bool prepareDenoise = true, bool forceAutoWB = true) override;
     void        filmNegativeProcess (const procparams::FilmNegativeParams &params, std::array<float, 3>& filmBaseValues) override;
     bool        getFilmNegativeExponents (Coord2D spotA, Coord2D spotB, int tran, const procparams::FilmNegativeParams &currentParams, std::array<float, 3>& newExps) override;
     bool        getRawSpotValues(Coord2D spot, int spotSize, int tran, const procparams::FilmNegativeParams &params, std::array<float, 3>& rawValues) override;

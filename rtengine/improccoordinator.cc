@@ -294,7 +294,7 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
         if ((todo & M_PREPROC) || (!highDetailPreprocessComputed && highDetailNeeded)) {
             imgsrc->setCurrentFrame(params->raw.bayersensor.imageNum);
 
-            imgsrc->preprocess(rp, params->lensProf, params->coarse);
+            imgsrc->preprocess(rp, params->lensProf, params->coarse, true, !params->filmNegative.enabled);
             if (flatFieldAutoClipListener && rp.ff_AutoClipControl) {
                 flatFieldAutoClipListener->flatFieldAutoClipValueChanged(imgsrc->getFlatFieldAutoClipValue());
             }

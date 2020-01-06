@@ -211,7 +211,7 @@ private:
         ImProcFunctions &ipf = * (ipf_p.get());
 
         imgsrc->setCurrentFrame (params.raw.bayersensor.imageNum);
-        imgsrc->preprocess ( params.raw, params.lensProf, params.coarse, params.dirpyrDenoise.enabled);
+        imgsrc->preprocess ( params.raw, params.lensProf, params.coarse, params.dirpyrDenoise.enabled, !params.filmNegative.enabled);
 
         // After preprocess, run film negative processing if enabled
         if ((imgsrc->getSensorType() == ST_BAYER || (imgsrc->getSensorType() == ST_FUJI_XTRANS)) && params.filmNegative.enabled) {

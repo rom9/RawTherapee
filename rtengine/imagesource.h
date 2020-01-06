@@ -90,7 +90,7 @@ public:
 
     ~ImageSource            () override {}
     virtual int         load        (const Glib::ustring &fname) = 0;
-    virtual void        preprocess  (const procparams::RAWParams &raw, const procparams::LensProfParams &lensProf, const procparams::CoarseTransformParams& coarse, bool prepareDenoise = true) {};
+    virtual void        preprocess  (const procparams::RAWParams &raw, const procparams::LensProfParams &lensProf, const procparams::CoarseTransformParams& coarse, bool prepareDenoise = true, bool forceAutoWB = true) {};
     virtual void        filmNegativeProcess (const procparams::FilmNegativeParams &params, std::array<float, 3>& filmBaseValues) {};
     virtual bool        getFilmNegativeExponents (Coord2D spotA, Coord2D spotB, int tran, const procparams::FilmNegativeParams& currentParams, std::array<float, 3>& newExps) { return false; };
     virtual bool        getRawSpotValues (Coord2D spot, int spotSize, int tran, const procparams::FilmNegativeParams &params, std::array<float, 3>& rawValues) { return false; };
