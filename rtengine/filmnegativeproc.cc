@@ -608,7 +608,7 @@ void rtengine::RawImageSource::filmNegativeProcess(const procparams::FilmNegativ
 
 
 
-
+// *** Non-raw processing ***
 
 
 bool rtengine::StdImageSource::getFilmNegativeExponents(Coord2D spotA, Coord2D spotB, int tran, const procparams::FilmNegativeParams &currentParams, std::array<float, 3>& newExps)
@@ -691,9 +691,21 @@ bool rtengine::StdImageSource::getFilmNegativeExponents(Coord2D spotA, Coord2D s
 
 void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativeParams &params, std::array<float, 3>& filmBaseValues)
 {
-    printf("####NonRaw neg proc!!!!\n");
+    if (!params.enabled) {
+        // If filmneg is not enabled, restore the copy as main image.
+        if (imgCopy) {
+            if(img) {
+                img->allocate(0,0);
+                delete img;
+            }
+            img = imgCopy;
+            imgCopy = nullptr;
+        }
 
-    if(!imgCopy) {
+        return;
+    }
+
+    if (params.enabled && !imgCopy) {
         printf("ONCE!!!!!!\n");
         imgCopy = new Imagefloat(img->getWidth(), img->getHeight());
         img->getStdImage(wb, 0, imgCopy, PreviewProps(0,0,img->getWidth(), img->getHeight(), 1));
@@ -707,30 +719,14 @@ void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativ
     Imagefloat* posImg = imgCopy->copy();
     img = posImg;
 
-//    static ImageIO *origImg = img;
-
-
-    // if(img != origImg) {
-    //     printf("####CLEAN!!!!!!!!!\n");
-    //     img->allocate(0,0);
-    //     delete img;
-    // }
-
-//    img = posImg;
 
     float rexp = -(params.greenExp * params.redRatio); // 2.2f;
     float gexp = -params.greenExp;  // 2.2f;
     float bexp = -(params.greenExp * params.blueRatio); // 2.2f;
+
     float rmult, gmult, bmult;
 
-
     {
-
-
-        // // Read film-base values from params
-        // float rbase = 65535.f * 0.3569f;
-        // float gbase = 65535.f * 0.4196f;
-        // float bbase = 65535.f * 0.4118f;
 
         // Channel vectors to calculate medians
         std::vector<float> rv, gv, bv;
@@ -767,24 +763,6 @@ void rtengine::StdImageSource::filmNegativeProcess(const procparams::FilmNegativ
 
     }
 
-/*
-            {
-                for (int i = 0; i < imgCopy->getHeight(); i++) {
-                    for (int j = 0; j < imgCopy->getWidth(); j++) {
-                        if(i>100 && i<200) {
-                            imgCopy->r(i,j) = CLIP(j*10);
-                            imgCopy->g(i,j) = CLIP(j*10);
-                            imgCopy->b(i,j) = CLIP(j*10);
-                            continue;
-                        }
-                        posImg->r(i,j) = CLIP(rmult * pow_F( imgCopy->r(i,j) , rexp));
-                        posImg->g(i,j) = CLIP(gmult * pow_F( imgCopy->g(i,j) , gexp));
-                        posImg->b(i,j) = CLIP(bmult * pow_F( imgCopy->b(i,j) , bexp));
-                    }
-
-                }
-            }
-*/
 
 #ifdef __SSE2__
     const vfloat clipv = F2V(MAXVALF);

@@ -214,7 +214,8 @@ private:
         imgsrc->preprocess ( params.raw, params.lensProf, params.coarse, params.dirpyrDenoise.enabled);
 
         // After preprocess, run film negative processing if enabled
-        if ((imgsrc->getSensorType() == ST_BAYER || (imgsrc->getSensorType() == ST_FUJI_XTRANS)) && params.filmNegative.enabled) {
+        if (!imgsrc->isRAW() || imgsrc->getSensorType() == ST_BAYER || imgsrc->getSensorType() == ST_FUJI_XTRANS) {
+
             std::array<float, 3> filmBaseValues = {
                 static_cast<float>(params.filmNegative.redBase),
                 static_cast<float>(params.filmNegative.greenBase),

@@ -290,8 +290,6 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
             frameCountListener->FrameCountChanged(imgsrc->getFrameCount(), params->raw.bayersensor.imageNum);
         }
 
-printf("###### HERE!!!!!!!\n");
-
         // raw auto CA is bypassed if no high detail is needed, so we have to compute it when high detail is needed
         if ((todo & M_PREPROC) || (!highDetailPreprocessComputed && highDetailNeeded)) {
             imgsrc->setCurrentFrame(params->raw.bayersensor.imageNum);
@@ -311,7 +309,6 @@ printf("###### HERE!!!!!!!\n");
                     || imgsrc->getSensorType() == ST_BAYER
                     || imgsrc->getSensorType() == ST_FUJI_XTRANS
                 )
-                && params->filmNegative.enabled
             ) {
                 std::array<float, 3> filmBaseValues = {
                     static_cast<float>(params->filmNegative.redBase),
@@ -319,7 +316,7 @@ printf("###### HERE!!!!!!!\n");
                     static_cast<float>(params->filmNegative.blueBase)
                 };
                 imgsrc->filmNegativeProcess(params->filmNegative, filmBaseValues);
-                if (filmNegListener && params->filmNegative.redBase <= 0.f) {
+                if (params->filmNegative.enabled && filmNegListener && params->filmNegative.redBase <= 0.f) {
                     filmNegListener->filmBaseValuesChanged(filmBaseValues);
                 }
             }
