@@ -62,12 +62,8 @@
    $Date: 2018/06/01 20:36:25 $
  */
 
-#define DCRAW_VERSION "9.28"
+//#define DCRAW_VERSION "9.28"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#define _USE_MATH_DEFINES
 #include <cctype>
 #include <cerrno>
 #include <fcntl.h>
@@ -94,9 +90,12 @@
 #ifdef WIN32
 #include <sys/utime.h>
 #include <winsock2.h>
-#define snprintf _snprintf
+#ifndef strcasecmp
 #define strcasecmp stricmp
+#endif
+#ifndef strncasecmp
 #define strncasecmp strnicmp
+#endif
 typedef __int64 INT64;
 typedef unsigned __int64 UINT64;
 #else
@@ -158,7 +157,6 @@ const float d65_white[3] = { 0.950456, 1, 1.088754 };
 #define MIN(a,b) rtengine::min(a,static_cast<__typeof__(a)>(b))
 #define MAX(a,b) rtengine::max(a,static_cast<__typeof__(a)>(b))
 #define LIM(x,min,max) rtengine::LIM(x,static_cast<__typeof__(x)>(min),static_cast<__typeof__(x)>(max))
-#define ULIM(x,y,z) rtengine::median(x,static_cast<__typeof__(x)>(y),static_cast<__typeof__(x)>(z))
 #define CLIP(x) rtengine::CLIP(x)
 #define SWAP(a,b) { a=a+b; b=a-b; a=a-b; }
 
@@ -6900,7 +6898,7 @@ it under the terms of the one of two licenses as you choose:
 	break;
       case 50778:
       case 50779:
-         if( get2() == 21 )
+         if( get2() != 17 ) // 17 is Standard light A
             cm_D65 = (tag-50778);
          break;
       case 50829:			/* ActiveArea */
@@ -9079,9 +9077,6 @@ void CLASS adobe_coeff (const char *make, const char *model)
   if (RT_blacklevel_from_constant == ThreeValBool::X || is_pentax_dng) {
     RT_blacklevel_from_constant = ThreeValBool::T;
   }
-  if (RT_matrix_from_constant == ThreeValBool::X) {
-    RT_matrix_from_constant = ThreeValBool::T;
-  }
   // -- RT --------------------------------------------------------------------
   
   for (i=0; i < sizeof table / sizeof *table; i++)
@@ -9098,6 +9093,11 @@ void CLASS adobe_coeff (const char *make, const char *model)
   if (load_raw == &CLASS sony_arw2_load_raw) { // RT: arw2 scale fix
       black <<= 2;
       tiff_bps += 2;
+  } else if (load_raw == &CLASS panasonic_load_raw) {
+      tiff_bps = RT_pana_info.bpp;
+  }
+  if (RT_matrix_from_constant == ThreeValBool::X) {
+    RT_matrix_from_constant = ThreeValBool::T;
   }
   { /* Check for RawTherapee table overrides and extensions */
       int black_level, white_level;
@@ -9868,6 +9868,7 @@ void CLASS identify()
     filters = 0;
     tiff_samples = colors = 3;
     load_raw = &CLASS canon_sraw_load_raw;
+    FORC4 cblack[c] = 0; // ALB
   } else if (!strcmp(model,"PowerShot 600")) {
     height = 613;
     width  = 854;
@@ -10542,7 +10543,7 @@ dng_skip:
        * files. See #4129 */) {
     memcpy (rgb_cam, cmatrix, sizeof cmatrix);
 //    raw_color = 0;
-    RT_matrix_from_constant = ThreeValBool::F;
+    RT_matrix_from_constant = ThreeValBool::X;
   }
   if(!strncmp(make, "Panasonic", 9) && !strncmp(model, "DMC-LX100",9))
 	adobe_coeff (make, model);
@@ -11021,7 +11022,6 @@ void CLASS nikon_14bit_load_raw()
 /*RT*/#undef MIN
 /*RT*/#undef ABS
 /*RT*/#undef LIM
-/*RT*/#undef ULIM
 /*RT*/#undef CLIP
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
